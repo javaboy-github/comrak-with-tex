@@ -320,6 +320,8 @@ impl<'a, 'o> CommonMarkFormatter<'a, 'o> {
             NodeValue::DescriptionDetails => self.format_description_details(entering),
             NodeValue::Heading(ref nch) => self.format_heading(nch, entering),
             NodeValue::CodeBlock(ref ncb) => self.format_code_block(node, ncb, entering),
+            NodeValue::TexBlock(..) => todo!("tex is not implemented"),
+            NodeValue::Tex(..) => todo!("tex is not implemented"),
             NodeValue::HtmlBlock(ref nhb) => self.format_html_block(nhb, entering),
             NodeValue::ThematicBreak => self.format_thematic_break(entering),
             NodeValue::Paragraph => self.format_paragraph(entering),

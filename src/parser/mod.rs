@@ -778,6 +778,11 @@ impl<'a, 'o, 'c> Parser<'a, 'o, 'c> {
                         return (false, container, should_continue);
                     }
                 }
+                NodeValue::TexBlock(..) => {
+                    if !self.parse_tex_block_prefix(line, container, ast, &mut should_continue) {
+                        return (false, container, should_continue);
+                    }
+                }
                 NodeValue::HtmlBlock(ref nhb) => {
                     if !self.parse_html_block_prefix(nhb.block_type) {
                         return (false, container, should_continue);
@@ -817,7 +822,7 @@ impl<'a, 'o, 'c> Parser<'a, 'o, 'c> {
 
         while !matches!(
             container.data.borrow().value,
-            NodeValue::CodeBlock(..) | NodeValue::HtmlBlock(..)
+            NodeValue::CodeBlock(..) | NodeValue::TexBlock(..) | NodeValue::HtmlBlock(..)
         ) {
             self.find_first_nonspace(line);
             let indented = self.indent >= CODE_INDENT;
@@ -872,6 +877,13 @@ impl<'a, 'o, 'c> Parser<'a, 'o, 'c> {
                     literal: Vec::new(),
                 };
                 *container = self.add_child(*container, NodeValue::CodeBlock(ncb));
+                self.advance_offset(line, first_nonspace + matched - offset, false);
+            } else if !indented
+                && unwrap_into(scanners::open_tex_fence(&line[self.first_nonspace..]), &mut matched){
+                let first_nonspace = self.first_nonspace;
+                let offset = self.offset;
+                let tex = Vec::new();
+                *container = self.add_child(*container, NodeValue::TexBlock(tex));
                 self.advance_offset(line, first_nonspace + matched - offset, false);
             } else if !indented
                 && (unwrap_into(
@@ -1172,6 +1184,45 @@ impl<'a, 'o, 'c> Parser<'a, 'o, 'c> {
         true
     }
 
+    fn parse_tex_block_prefix(
+        &mut self,
+        line: &[u8],
+        container: &'a AstNode<'a>,
+        ast: &mut Ast,
+        should_continue: &mut bool,
+    ) -> bool {
+        // let (fenced, fence_char, fence_length, fence_offset) = match ast.value {
+        //     NodeValue::CodeBlock(ref ncb) => (
+        //         ncb.fenced,
+        //         ncb.fence_char,
+        //         ncb.fence_length,
+        //         ncb.fence_offset,
+        //     ),
+        //     _ => unreachable!(),
+        // };
+
+        let matched = if self.indent <= 3 && line[self.first_nonspace] == b'$' {
+            scanners::close_tex_fence(&line[self.first_nonspace..])
+        } else {
+            None
+        };
+
+
+        if let Some(matched) = matched {
+            *should_continue = false;
+            self.advance_offset(line, matched, false);
+            self.current = self.finalize_borrowed(container, ast).unwrap();
+            return false;
+        }
+
+        // let mut i = fence_offset;
+        // while i > 0 && strings::is_space_or_tab(line[self.offset]) {
+        //     self.advance_offset(line, 1, true);
+        //     i -= 1;
+        // }
+        true
+    }
+
     fn parse_html_block_prefix(&mut self, t: u8) -> bool {
         match t {
             1 | 2 | 3 | 4 | 5 => true,
@@ -1251,7 +1302,7 @@ impl<'a, 'o, 'c> Parser<'a, 'o, 'c> {
 
         container.data.borrow_mut().last_line_blank = self.blank
             && match container.data.borrow().value {
-                NodeValue::BlockQuote | NodeValue::Heading(..) | NodeValue::ThematicBreak => false,
+                NodeValue::BlockQuote | NodeValue::TexBlock(..) | NodeValue::Heading(..) | NodeValue::ThematicBreak => false,
                 NodeValue::CodeBlock(ref ncb) => !ncb.fenced,
                 NodeValue::Item(..) => {
                     container.first_child().is_some()
@@ -1279,12 +1330,16 @@ impl<'a, 'o, 'c> Parser<'a, 'o, 'c> {
 
             let add_text_result = match container.data.borrow().value {
                 NodeValue::CodeBlock(..) => AddTextResult::CodeBlock,
+                NodeValue::TexBlock(..) => AddTextResult::TexBlock,
                 NodeValue::HtmlBlock(ref nhb) => AddTextResult::HtmlBlock(nhb.block_type),
                 _ => AddTextResult::Otherwise,
             };
 
             match add_text_result {
                 AddTextResult::CodeBlock => {
+                    self.add_line(container, line);
+                }
+                AddTextResult::TexBlock => {
                     self.add_line(container, line);
                 }
                 AddTextResult::HtmlBlock(block_type) => {
@@ -1460,6 +1515,9 @@ impl<'a, 'o, 'c> Parser<'a, 'o, 'c> {
                     *content = content[pos..].to_vec();
                 }
                 mem::swap(&mut ncb.literal, content);
+            }
+            NodeValue::TexBlock(ref mut literal) => {
+                mem::swap(literal, content);
             }
             NodeValue::HtmlBlock(ref mut nhb) => {
                 mem::swap(&mut nhb.literal, content);
@@ -1795,6 +1853,7 @@ impl<'a, 'o, 'c> Parser<'a, 'o, 'c> {
 
 enum AddTextResult {
     CodeBlock,
+    TexBlock,
     HtmlBlock(u8),
     Otherwise,
 }

@@ -69,6 +69,10 @@ pub enum NodeValue {
     /// which is not parsed as Markdown, although is HTML escaped.
     CodeBlock(NodeCodeBlock),
 
+    /// **Block**. A tex block. Contains raw text
+    /// which is not parsed as Markdown, is parsed as tex
+    TexBlock(Vec<u8>),
+
     /// **Block**. A [HTML block](https://github.github.com/gfm/#html-blocks).  Contains raw text
     /// which is neither parsed as Markdown nor HTML escaped.
     HtmlBlock(NodeHtmlBlock),
@@ -122,6 +126,9 @@ pub enum NodeValue {
 
     /// **Inline**.  A [code span](https://github.github.com/gfm/#code-spans).
     Code(NodeCode),
+
+    /// **Inline**.  A tex span.
+    Tex(Vec<u8>),
 
     /// **Inline**.  [Raw HTML](https://github.github.com/gfm/#raw-html) contained inline.
     HtmlInline(Vec<u8>),

@@ -86,6 +86,15 @@ pub fn close_code_fence(line: &[u8]) -> Option<usize> {
 }
 
 #[inline(always)]
+pub fn open_tex_fence(line: &[u8]) -> Option<usize> {
+    if line[0] != b'$' {None} else {search(Rule::open_tex_fence, line)}
+}
+
+#[inline(always)]
+pub fn close_tex_fence(line: &[u8]) -> Option<usize> {
+    if line[0] != b'$' {None} else {search(Rule::close_tex_fence, line)}
+}
+#[inline(always)]
 pub fn html_block_start(line: &[u8]) -> Option<usize> {
     const STR2: &'static [u8] = b"<!--";
     const STR3: &'static [u8] = b"<?";

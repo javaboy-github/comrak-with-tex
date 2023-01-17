@@ -561,7 +561,9 @@ impl<'o> HtmlFormatter<'o> {
                         }
                     }
                 }
-            }
+            },
+            NodeValue::TexBlock(..) => todo!("tex is not implemented"),
+            NodeValue::Tex(..) => todo!("tex is not implemented"),
             NodeValue::HtmlBlock(ref nhb) => {
                 if entering {
                     self.cr()?;
